@@ -13,3 +13,6 @@ Other Open Source Libraries
 ---
   - [MOEA Framework](http://www.moeaframework.org) - A Free and Open Source Java Framework for Multiobjective Optimization
   - [TSPLIB4J](http://github.com/dhadka/TSPLIB4J) - A Java library for TSPLIB (Traveling Salesman Problems)
+
+  - [Hocnonsense/DGantt](https://github.com/Hocnonsense/DGantt) - A simple Gantt chart based on DGantt.  It is reconfigured.
+    ![Screenshot of reconfigured Gantt chart](screenshot2.png "Screenshot of reconfigured Gantt chart")
