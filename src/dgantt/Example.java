@@ -58,7 +58,9 @@ public Example() {
   
 }
 
-public static void Main()
+public static void main(final String[] args) {
+  new Example();
+}
 
 /**
  * Set system style window.
