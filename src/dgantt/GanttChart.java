@@ -1,29 +1,10 @@
-/* Copyright 2011 David Hadka
- * 
- * This file is part of DGantt.
- * 
- * DGantt is free software: you can redistribute it and/or modify it under the
- * terms of the GNU Lesser General Public License as published by the Free 
- * Software Foundation, either version 3 of the License, or (at your option) 
- * any later version.
- * 
- * DGantt is distributed in the hope that it will be useful, but WITHOUT ANY 
- * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
- * FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for 
- * more details.
- * 
- * You should have received a copy of the GNU Lesser General Public License 
- * along with the DGantt.  If not, see <http://www.gnu.org/licenses/>.
- */
 package dgantt;
 
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.event.MouseEvent;
 import java.awt.geom.Rectangle2D;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -38,704 +19,577 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
 /**
- * A Gantt chart swing component.  A Gantt chart is constructed by providing
- * a {@link GanttModel} and a {@link Translator}.  The {@code GanttModel} stores
- * all tasks displayed in the Gantt chart in addition to controlling several
- * additional settings.  The {@link Translator} extracts the necessary
- * information from user-defined objects, such as the start and end values of
- * the task, to render the Gantt chart tasks.  An optional {@link LinkModel} can
- * provide visual links between tasks to represent arbitrary requirements or
- * constraints.
- * <p>
- * This component provides the basic Gantt chart functionality, but is intended
- * to be extended with custom renderers and listeners to provide more complex 
- * behavior.
+ * A Gantt chart swing component.  A Gantt chart is constructed by
+ *  providing a {@link TaskSetModel} and a {@link TaskModel}.
+ *  The {@code GanttModel} stores all tasks displayed in the
+ *  Gantt chart in addition to controlling several additional
+ *  settings. The {@link TaskModel} extracts the necessary
+ *  information from user-defined objects, such as the start
+ *  and end values of the task, to render the Gantt chart tasks.
+ *  An optional {@code LinkModel} can provide visual links between
+ *  tasks to represent arbitrary requirements or constraints.
+ *  <p>
+ *  This component provides the basic Gantt chart functionality,
+ *  but is intended to be extended with custom renderers and
+ *  listeners to provide more complex behavior.
+ * @author Hwrn
  */
-public class GanttChart extends JComponent implements GanttModelListener {
-	
-	private static final long serialVersionUID = 1745970251668888420L;
-	
-	/**
-	 * The {@code GanttModel} storing the tasks and other necessary settings
-	 * used by this Gantt chart.
-	 */
-	private final GanttModel model;
-	
-	/**
-	 * The {@code Translator} used by this Gantt chart to extract the necessary
-	 * display information from user-defined tasks.
-	 */
-	private final Translator translator;
-	
-	/**
-	 * The {@code LinkModel} storing the links between tasks displayed in this
-	 * Gantt chart.
-	 */
-	private final LinkModel linkModel;
-	
-	/**
-	 * The renderer used for drawing rows.
-	 */
-	private RowRenderer rowRenderer;
+public class GanttChart
+    extends JComponent implements GanttModelListener {
 
-	/**
-	 * The renderer used for drawing tasks.
-	 */
-	private TaskRenderer taskRenderer;
-	
-	/**
-	 * The renderer used for drawing links between tasks.
-	 */
-	private LinkRenderer linkRenderer;
-	
-	/**
-	 * The set of tasks currently selected in this Gantt chart.
-	 */
-	private Set<Object> selectedTasks;
-	
-	/**
-	 * The listeners registered with this Gantt chart to receive notifications
-	 * when the set of selected tasks is changed.
-	 */
-	private List<GanttSelectionListener> selectionListeners;
-	
-	/**
-	 * The listeners registered with this Gantt chart to receive notifications
-	 * when any aspect of the Gantt chart is changed.
-	 */
-	private List<ChangeListener> changeListeners;
-	
-	/**
-	 * The user-specified zoom.
-	 */
-	private double zoom;
-	
-	/**
-	 * The minimum value displayed in this Gantt chart, in canonical 
-	 * coordinates.
-	 */
-	protected long rangeMinimum;
-	
-	/**
-	 * The maximum value displayed in this Gantt chart, in canonical 
-	 * coordinates.
-	 */
-	protected long rangeMaximum;
+/**
+ * =_=.
+ */
+private static final long serialVersionUID = 1L;
 
-	/**
-	 * The height of each row.
-	 */
-	private int rowHeight;
-	
-	/**
-	 * The dimensions of the empty space surrounding a task.
-	 */
-	private Insets rowInsets;
-	
-	/**
-	 * Class constructor for a new Gantt chart with the specified Gantt model
-	 * and translator.
-	 * 
-	 * @param model the {@code GanttModel} storing the tasks and other necessary
-	 *        settings used by this Gantt chart
-	 * @param translator the {@code Translator} used by this Gantt chart to 
-	 *        extract the necessary display information from user-defined tasks
-	 */
-	public GanttChart(GanttModel model, Translator translator) {
-		this(model, translator, null);
-	}
-	
-	/**
-	 * Class constructor for a new Gantt chart with the specified Gantt model, 
-	 * translator and link model.
-	 * 
-	 * @param model the {@code GanttModel} storing the tasks and other necessary
-	 *        settings used by this Gantt chart
-	 * @param translator the {@code Translator} used by this Gantt chart to 
-	 *        extract the necessary display information from user-defined tasks
-	 * @param linkModel the {@code LinkModel} storing the links between tasks 
-	 *        displayed in this Gantt chart
-	 */
-	public GanttChart(GanttModel model, Translator translator, 
-			LinkModel linkModel) {
-		super();
-		this.model = model;
-		this.translator = translator;
-		this.linkModel = linkModel;
-		
-		rowRenderer = new BasicRowRenderer();
-		taskRenderer = new BasicTaskRenderer();
-		linkRenderer = new BasicLinkRenderer();
-		
-		selectedTasks = new HashSet<Object>();
-		selectionListeners = new Vector<GanttSelectionListener>();
-		changeListeners = new Vector<ChangeListener>();
+/**
+ * model.
+ */
+private final TaskSetModel taskset;
 
-		rowHeight = 20;
-		rowInsets = new Insets(1, 1, 1, 1);
-		zoom = 1.0;
-		
-		computeRange();
-		setToolTipText("");
-		
-		model.addGanttModelListener(this);
-	}
+/**
+ * The renderer used for drawing rows.
+ */
+private GanttRenderer renderer;
 
-	/**
-	 * Registers the specified {@link GanttSelectionListener} to receive
-	 * notifications from this Gantt chart whenever the set of selected tasks
-	 * is changed.
-	 * 
-	 * @param listener the listener to receive notifications
-	 */
-	public void addGanttSelectionListener(GanttSelectionListener listener) {
-		selectionListeners.add(listener);
-	}
-	
-	/**
-	 * Unregisters the specified {@link GanttSelectionListener} to no longer
-	 * receieve notifications from this Gantt chart whenever the set of selected
-	 * tasks is changed.
-	 * 
-	 * @param listener the listener to no longer recieve notifications
-	 */
-	public void removeGanttSelectionListener(GanttSelectionListener listener) {
-		selectionListeners.remove(listener);
-	}
-	
-	/**
-	 * Registers the specified {@link ChangeListener} to receive notifications
-	 * from this Gantt chart whenever its contents are changed.
-	 * 
-	 * @param listener the listener to receive notifications
-	 */
-	public void addChangeListener(ChangeListener listener) {
-		changeListeners.add(listener);
-	}
-	
-	/**
-	 * Unregisters the specified {@link ChangeListener} to no longer receive
-	 * notifications from this Gantt chart whenever its contents are changed.
-	 * 
-	 * @param listener the listener to no longer receive notifications
-	 */
-	public void removeChangeListener(ChangeListener listener) {
-		changeListeners.remove(listener);
-	}
-	
-	/**
-	 * Notifies all registered {@link GanttSelectionListener} that the set of
-	 * selected tasks has changed.
-	 */
-	public void fireSelectionEvent() {
-		GanttSelectionEvent event = new GanttSelectionEvent(this);
-		
-		for (GanttSelectionListener listener : selectionListeners) {
-			listener.valueChanged(event);
-		}
-	}
-	
-	/**
-	 * Notifies all registered {@link ChangeListener} that the Gantt chart
-	 * contents have changed.
-	 */
-	public void fireChangeEvent() {
-		ChangeEvent event = new ChangeEvent(this);
-		
-		for (ChangeListener listener : changeListeners) {
-			listener.stateChanged(event);
-		}
-	}
+/**
+ * The set of tasks currently selected in this Gantt chart.
+ */
+private Set<TaskModel> selectedtasks;
 
-	/**
-	 * Adds the specified task to the set of selected tasks.  This method
-	 * invokes {@code fireSelectionEvent()}.
-	 * 
-	 * @param task the task to be selected
-	 */
-	public void selectTask(Object task) {
-		selectedTasks.add(task);
-		fireSelectionEvent();
-	}
-	
-	/**
-	 * Removes the specified task from the set of selected tasks.  This method
-	 * invokes {@code fireSelectionEvent()}.
-	 * 
-	 * @param task the task to be unselected
-	 */
-	public void unselectTask(Object task) {
-		selectedTasks.remove(task);
-		fireSelectionEvent();
-	}
-	
-	/**
-	 * Toggles the selection state of the specified task.  This method invokes
-	 * {@code fireSelectionEvent()}.
-	 * 
-	 * @param task the task to be selected/unselected
-	 */
-	public void toggleTaskSelection(Object task) {
-		if (selectedTasks.contains(task)) {
-			selectedTasks.remove(task);
-		} else {
-			selectedTasks.add(task);
-		}
-		
-		fireSelectionEvent();
-	}
-	
-	/**
-	 * Returns {@code true} if the specified task is currently selected;
-	 * {@code false} otherwise.
-	 * 
-	 * @param task the task
-	 * @return {@code true} if the specified task is currently selected;
-	 *         {@code false} otherwise
-	 */
-	public boolean isTaskSelected(Object task) {
-		return selectedTasks.contains(task);
-	}
-	
-	/**
-	 * Returns the set of selected tasks.  Changes to the returned set will be
-	 * reflected in the Gantt chart, requiring the invocation of 
-	 * {@code fireSelectionEvent()}.  This is primarily intended to allow
-	 * multiple changes to the set of selected tasks while only firing one
-	 * selection event.
-	 * 
-	 * @return the set of selected tasks
-	 */
-	public Set<Object> getSelectedTasks() {
-		return selectedTasks;
-	}
-	
-	/**
-	 * Returns the first selected task, or {@code null} if no tasks are
-	 * selected.
-	 * 
-	 * @return the first selected task, or {@code null} if no tasks are
-	 *         selected
-	 */
-	public Object getSelectedTask() {
-		if (selectedTasks.isEmpty()) {
-			return null;
-		}
-		
-		return selectedTasks.iterator().next();
-	}
-	
-	/**
-	 * Unselects all previously selected tasks.  This method invokes 
-	 * {@code fireSelectionEvent()}.
-	 */
-	public void clearSelection() {
-		selectedTasks.clear();
-		fireSelectionEvent();
-	}
-	
-	/**
-	 * Forces the Gantt chart to recompute its minimum and maximum values and,
-	 * if necessary, resize and repaint itself.
-	 */
-	public void resize() {
-		long oldMinimum = rangeMinimum;
-		long oldMaximum = rangeMaximum;
-		
-		computeRange();
+/**
+ * The listeners registered with this Gantt chart to receive
+ *  notifications when the set of selected tasks is changed.
+ */
+private List<GanttSelectionListener> selectionlisteners;
 
-		if ((oldMinimum != rangeMinimum) || (oldMaximum != rangeMaximum)) {
-			forceRevalidateAndRepaint();
-		}
-	}
-	
-	/**
-	 * Forces this Gantt chart to revalidate and repaint, but also forces any
-	 * parent {@link JScrollPane} or {@link GanttPanel} to revalidate and
-	 * repaint.
-	 */
-	protected void forceRevalidateAndRepaint() {
-		revalidate();
-		repaint();
-		
-		if (getParent() instanceof JViewport) {
-			JViewport viewport = (JViewport)getParent();
-			viewport.revalidate();
-			viewport.repaint();
-			
-			if (viewport.getParent() instanceof JScrollPane) {
-				JScrollPane scrollPane = (JScrollPane)viewport.getParent();
-				scrollPane.revalidate();
-				scrollPane.repaint();
-			}
-		}
-	}
-	
-	/**
-	 * Computes the minimum and maximum values contained in this Gantt chart.
-	 */
-	private void computeRange() {
-		rangeMinimum = Long.MAX_VALUE;
-		rangeMaximum = Long.MIN_VALUE;
-		
-		for (int i=0; i<model.getTaskCount(); i++) {
-			Object task = model.getTaskAt(i);
-			
-			rangeMinimum = Math.min(rangeMinimum, translator.getStart(task));
-			rangeMaximum = Math.max(rangeMaximum, translator.getEnd(task));
-		}
-		
-		if ((rangeMinimum == Long.MAX_VALUE) || (rangeMaximum == Long.MIN_VALUE)) {
-			//model empty
-			rangeMinimum = 0;
-			rangeMaximum = 0;
-		}
-	}
-	
-	@Override
-	public Dimension getPreferredSize() {
-		int width;
-		
-		if (getParent() instanceof JViewport) {
-			width = (int)(zoom * getParent().getWidth());
-		} else {
-			width = super.getPreferredSize().width;
-		}
-		
-		int height = model.getRowCount() * getRowHeight();
+/**
+ * The listeners registered with this Gantt chart to receive
+ *  notifications when any aspect of the Gantt chart is changed.
+ */
+private List<ChangeListener> changelisteners;
 
-		return new Dimension(width, height);
-	}
+/**
+ * the user-specified zoom.
+ * to record size of task body and time axis.
+ */
+private double zoom;
 
-	/**
-	 * Returns the row at the specified vertical position in screen coordinates;
-	 * or {@code null} if the position is out of bounds.
-	 * 
-	 * @param y the vertical position in screen coordinates
-	 * @return the row at the specified vertical position in screen coordinates;
-	 *         or {@code null} if the position is out of bounds
-	 */
-	public Integer getRow(double y) {
-		if (y < 0)
-			return null;
-		
-		if (y > getHeight())
-			return null;
-		
-		int row = (int)(y / getRowHeight());
-		
-		if (row >= model.getRowCount())
-			return null;
+/**
+ * The minimum value displayed in this Gantt chart, in canonical 
+ * coordinates.
+ */
+private long rangeminimum;
 
-		return row;
-	}
-	
-	/**
-	 * Returns the scaling factor used to convert between canonical and screen
-	 * coordinates.
-	 * 
-	 * @return the scaling factor used to convert between canonical and screen
-	 *         coordinates
-	 */
-	private double getScale() {
-		return (double)(getWidth() - rowInsets.left - rowInsets.right) /
-				(double)(rangeMaximum - rangeMinimum);
-	}
-	
-	/**
-	 * Converts from canonical coordinates to screen coordinates.
-	 * 
-	 * @param value the canonical coordinate value
-	 * @return the screen coordinate value
-	 */
-	public double canonicalToScreen(long value) {
-		return getScale()*(value - rangeMinimum) + rowInsets.left;
-	}
-	
-	/**
-	 * Converts from screen coordinates to canonical coordinates.
-	 * 
-	 * @param x the screen coordinate value
-	 * @return the canonical coordinate value
-	 */
-	public long screenToCanonical(double x) {
-		return (long)((x - rowInsets.left) / getScale()) + rangeMinimum;
-	}
-	
-	/**
-	 * Returns the rectangular bounds of the specified task in screen
-	 * coordinates.
-	 * 
-	 * @param task the task
-	 * @return the rectangular bounds of the specified task in screen
-	 *         coordinates
-	 */
-	public Rectangle2D getTaskBounds(Object task) {
-		int row = translator.getRow(task);
-		double start = canonicalToScreen(translator.getStart(task));
-		double end = canonicalToScreen(translator.getEnd(task));
-		double top = row*getRowHeight() + rowInsets.top;
-		
-		return new Rectangle2D.Double(start, top, end - start, rowHeight);
-	}
-	
-	/**
-	 * Returns the rectangular bounds of the specified task in screen
-	 * coordinates, whose position and width are modified by the additional
-	 * parameters.
-	 * 
-	 * @param task the task
-	 * @param row the new row
-	 * @param dstart the change in position
-	 * @param dwidth the change in width
-	 * @return the rectangular bounds of the specified task in screen
-	 *         coordinates, whose position and width are modified by the 
-	 *         additional parameters
-	 */
-	public Rectangle2D getTaskBounds(Object task, int row, double dstart, 
-			double dwidth) {
-		double start = canonicalToScreen(translator.getStart(task));
-		double end = canonicalToScreen(translator.getEnd(task));
-		double top = row*getRowHeight() + rowInsets.top;
-		
-		return new Rectangle2D.Double(start + dstart, top, end - start + dwidth,
-				rowHeight);
-	}
-	
-	/**
-	 * Returns the rectangular bounds of the specified row in screen 
-	 * coordinates.
-	 * 
-	 * @param row the row
-	 * @return the rectangular bounds of the specified row in screen 
-	 *         coordinates
-	 */
-	public Rectangle2D getRowBounds(int row) {		
-		return new Rectangle2D.Double(0.0, row*getRowHeight(), getWidth(),
-				getRowHeight());
-	}
-	
-	@Override
-	public void paintComponent(Graphics g) {
-		Graphics2D g2 = (Graphics2D)g;
-		Rectangle clip = g2.getClipBounds();
-		
-		rowRenderer.paintBackground(g, this);
-		
-		for (int i=0; i<getModel().getRowCount(); i++) {
-			Rectangle2D bounds = getRowBounds(i);
-			
-			if (bounds.intersects(clip)) {
-				rowRenderer.paintRow(g, this, i, bounds, false);
-			}
-		}
-			
-		for (int i=0; i<model.getTaskCount(); i++) {
-			Object task = model.getTaskAt(i);
-			Rectangle2D bounds = getTaskBounds(task);
-			
-			if (bounds.intersects(clip)) {
-				taskRenderer.paintTask(g, this, task, bounds, isTaskSelected(task));
-			}
-		}
-		
-		if ((linkRenderer != null) && (linkModel != null)) {
-			for (int i=0; i<linkModel.getLinkCount(); i++) {
-				linkRenderer.paintLink(g, this, linkModel.getLinkAt(i));
-			}
-		}
-	}
+/**
+ * The maximum value displayed in this Gantt chart, in canonical 
+ * coordinates.
+ */
+private long rangemaximum;
 
-	@Override
-	public void ganttModelChanged(GanttModelEvent event) {
-		//check to see if selected tasks still exist
-		Iterator<Object> iterator = selectedTasks.iterator();
-		boolean selectionChanged = false;
-		
-		while (iterator.hasNext()) {
-			Object task = iterator.next();
-			boolean found = false;
-			
-			for (int i=0; i<model.getTaskCount(); i++) {
-				if (model.getTaskAt(i).equals(task)) {
-					found = true;
-					break;
-				}
-			}
-			
-			if (!found) {
-				iterator.remove();
-				selectionChanged = true;
-			}
-		}
-		
-		computeRange();
-		forceRevalidateAndRepaint();
-		fireChangeEvent();
-		
-		if (selectionChanged) {
-			fireSelectionEvent();
-		}
-	}
-	
-	/**
-	 * Returns the task at the specified point; or {@code null} if no task
-	 * exists at that point.  Pick ordering is such that selected tasks are
-	 * picked first, followed by tasks in reverse order from their position
-	 * in the {@code GanttModel}.
-	 * 
-	 * @param point the point
-	 * @return the task at the specified point; or {@code null} if no task
-	 *         exists at that point
-	 */
-	public Object getTaskAtPoint(Point point) {
-		//see if mouse is over selected task first
-		for (Object task : selectedTasks) {
-			Rectangle2D bounds = getTaskBounds(task);
-			
-			if (bounds.contains(point)) {
-				return task;			
-			}
-		}
-		
-		for (int i=model.getTaskCount()-1; i>=0; i--) {
-			Object task = model.getTaskAt(i);
-			Rectangle2D bounds = getTaskBounds(task);
-			
-			if (bounds.contains(point)) {
-				return task;
-			}
-		}
-		
-		return null;	
-	}
-	
-	@Override
-	public String getToolTipText(MouseEvent e) {
-		Object task = getTaskAtPoint(e.getPoint());
-		
-		if (task == null) {
-			return null;
-		} else {
-			return translator.getToolTipText(task);
-		}
-	}
-	
-	/**
-	 * Sets the user-specified zoom.
-	 * 
-	 * @param zoom the new zoom
-	 */
-	public void setZoom(double zoom) {
-		this.zoom = zoom;
+/**
+ * draw a gantt chart.
+ * body of gantt
+ * 
+ * @param taskset
+ * @param renderer
+ */
+//CHECKSTYLE:OFF:hiddenField
+public GanttChart(final TaskSetModel taskset,
+    final GanttRenderer renderer) {
+  this.taskset = taskset;
+  this.renderer = renderer;
 
-		setSize(getPreferredSize());
-		forceRevalidateAndRepaint();
-	}
-	
-	/**
-	 * Returns the user-specified zoom.
-	 * 
-	 * @return the user-specified zoom
-	 */
-	public double getZoom() {
-		return zoom;
-	}
+  selectedtasks = new HashSet<TaskModel>();
+  selectionlisteners = new Vector<GanttSelectionListener>();
+  changelisteners = new Vector<ChangeListener>();
 
-	/**
-	 * Returns the {@code GanttModel} storing the tasks and other necessary 
-	 * settings used by this Gantt chart.
-	 * 
-	 * @return the {@code GanttModel} storing the tasks and other necessary 
-	 *         settings used by this Gantt chart
-	 */
-	public GanttModel getModel() {
-		return model;
-	}
+  zoom = 1.0;
 
-	/**
-	 * Returns the {@code Translator} used by this Gantt chart to extract the 
-	 * necessary display information from user-defined tasks.
-	 * 
-	 * @return the {@code Translator} used by this Gantt chart to extract the 
-	 *         necessary display information from user-defined tasks
-	 */
-	public Translator getTranslator() {
-		return translator;
-	}
+  computeRange();
+  setToolTipText("");
 
-	/**
-	 * Returns the {@code LinkModel} storing the links between tasks displayed 
-	 * in this Gantt chart.
-	 * 
-	 * @return the {@code LinkModel} storing the links between tasks displayed 
-	 *         in this Gantt chart
-	 */
-	public LinkModel getLinkModel() {
-		return linkModel;
-	}
+  taskset.addGanttModelListener(this);
+}
 
-	/**
-	 * Returns the renderer used for drawing the background.
-	 * 
-	 * @return the renderer used for drawing the background
-	 */
-	public RowRenderer getRowRenderer() {
-		return rowRenderer;
-	}
+/**
+ * Computes the minimum and maximum values contained in this
+ *  Gantt chart.
+ */
+private void computeRange() {
+  rangeminimum = Long.MAX_VALUE;
+  rangemaximum = Long.MIN_VALUE;
+  
+  for (int i = taskset.getRowCount() - 1; i >= 0; --i) {
+    for (int j = taskset.getTaskCount(i) - 1; j >= 0; --j) {
+      TaskModel task = taskset.getTaskAt(i, j);
+      rangeminimum = Math.min(
+          rangeminimum, TaskModel.getStart(task));
+      rangemaximum = Math.max(
+          rangemaximum, TaskModel.getEnd(task));
+      
+    }
+    
+  }
+  if ((rangeminimum == Long.MAX_VALUE) 
+      || (rangemaximum == Long.MIN_VALUE)) {
+    //model empty
+    rangeminimum = 0;
+    rangemaximum = 0;
+    
+  }
+  
+}
 
-	/**
-	 * Sets the renderer used for drawing the background.
-	 * 
-	 * @param rowRenderer the renderer used for drawing the background
-	 */
-	public void setRowRenderer(RowRenderer rowRenderer) {
-		this.rowRenderer = rowRenderer;
-	}
+public void addGanttSelectionListener(
+    GanttSelectionListener linstener) {
+  selectionlisteners.add(linstener);
+}
 
-	/**
-	 * Returns the renderer used for drawing tasks.
-	 * 
-	 * @return the renderer used for drawing tasks
-	 */
-	public TaskRenderer getTaskRenderer() {
-		return taskRenderer;
-	}
+/**
+ * Forces this Gantt chart to revalidate and repaint, but also
+ *  forces any parent {@link JScrollPane} or {@link GanttPanel}
+ *  to revalidate and repaint.
+ */
+protected void forceRevalidateAndRepaint() {
+  revalidate();
+  repaint();
 
-	/**
-	 * Sets the renderer used for drawing tasks.
-	 * 
-	 * @param taskRenderer the renderer used for drawing tasks
-	 */
-	public void setTaskRenderer(TaskRenderer taskRenderer) {
-		this.taskRenderer = taskRenderer;
-	}
+  if (getParent() instanceof JViewport) {
+    JViewport viewport = (JViewport) getParent();
+    viewport.revalidate();
+    viewport.repaint();
 
-	/**
-	 * Returns the renderer used for drawing links between tasks.
-	 * 
-	 * @return the renderer used for drawing links between tasks
-	 */
-	public LinkRenderer getLinkRenderer() {
-		return linkRenderer;
-	}
+    if (viewport.getParent() instanceof JScrollPane) {
+      JScrollPane scrollPane = (JScrollPane) viewport.getParent();
+      scrollPane.revalidate();
+      scrollPane.repaint();
+      
+    }
+    
+  }
+  
+}
 
-	/**
-	 * Sets the renderer used for drawing links between tasks.
-	 * 
-	 * @param linkRenderer the renderer used for drawing links between tasks
-	 */
-	public void setLinkRenderer(LinkRenderer linkRenderer) {
-		this.linkRenderer = linkRenderer;
-	}
+/**
+ * Notifies all registered {@link ChangeListener} that
+ *  the Gantt chart contents have changed.
+ */
+public void fireChangeEvent() {
+  ChangeEvent event = new ChangeEvent(this);
+  
+  for (ChangeListener listener : changelisteners) {
+    listener.stateChanged(event);
+    
+  }
+  
+}
 
-	/**
-	 * Returns the height of each row, including any insets.
-	 * 
-	 * @return the height of each row
-	 */
-	public int getRowHeight() {
-		return rowInsets.top + rowHeight + rowInsets.bottom;
-	}
+/**
+ * Notifies all registered {@link GanttSelectionListener} that the set of
+ * selected tasks has changed.
+ */
+public void fireSelectionEvent() {
+  GanttSelectionEvent event = new GanttSelectionEvent(this);
+  
+  for (GanttSelectionListener listener : selectionlisteners) {
+    listener.valueChanged(event);
+    
+  }
+  
+}
+
+/**
+ * Return the row of the title.
+ *  Else -1
+ * 
+ * @param title the title of task
+ * @return the row of task
+ */
+public int getTitleAt(String title) {
+  for (int i = taskset.getRowCount() - 1; i >= 0; --i) {
+    if (title == taskset.getTitleAt(i)) {
+      return i;
+    
+    }
+  
+  }
+  return -1;
+  
+}
+
+/**
+ * Return the column index of the task.
+ *  Else -1
+ *  
+ * @param titlerow
+ * @param task
+ * @return the column index of the specified task
+ */
+public int getTaskAt(int titlerow, TaskModel task) {
+  for (int j = taskset.getTaskCount(titlerow)-1; j>=0; --j) {
+    if (task.equals(taskset.getTaskAt(titlerow, j))) {
+      return j;
+      
+    }
+    
+  }
+  return -1;
+  
+}
+
+/**
+ * how to change.
+ * check to see if selected tasks still exist
+ */
+@Override
+public void ganttModelChanged(final GanttModelEvent event) {
+  Iterator<TaskModel> iterator = selectedtasks.iterator();
+  boolean selectionChanged = false;
+  
+  while (iterator.hasNext()) {
+    TaskModel task = iterator.next();
+    boolean found = false;
+    
+    int i = getTitleAt(TaskModel.getTitle(task));
+    if (-1 != i) {
+      int j = getTaskAt(i, task);
+      if (-1 != j) {
+        found = true;
+        
+      }
+      
+    }
+    if (!found) {
+      iterator.remove();
+      selectionChanged = true;
+      
+    }
+    
+  }
+  
+  computeRange();
+  forceRevalidateAndRepaint();
+  fireChangeEvent();
+  
+  if (selectionChanged) {
+    fireSelectionEvent();
+    
+  }
+  
+}
+
+/**
+ * Returns the scaling factor used to convert between canonical and
+ *  screen coordinates.
+ * 
+ * @return the scaling factor used to convert between canonical
+ *         and screen coordinates
+ */
+private double getScale() {
+  return (double) (getWidth() - MagicNumber.GANTT_ROW_INSETS.left
+      - MagicNumber.GANTT_ROW_INSETS.right)
+      / (double) (rangemaximum - rangeminimum);
+  
+}
+
+/**
+ * Converts from canonical coordinates to screen coordinates.
+ * 
+ * @param value the canonical coordinate value
+ * @return the screen coordinate value
+ */
+public double canonicalToScreen(final long value) {
+  return getScale() * (value - rangeminimum)
+      + MagicNumber.GANTT_ROW_INSETS.left;
+  
+}
+
+/**
+ * Converts from screen coordinates to canonical coordinates.
+ * 
+ * @param x the screen coordinate value
+ * @return the canonical coordinate value
+ */
+public long screenToCanonical(final double x) {
+  return (long) ((x - MagicNumber.GANTT_ROW_INSETS.left)
+      / getScale()) + rangeminimum;
+  
+}
+
+/**
+ * Return the hight of each row.
+ * 
+ * @return the higth of each row.
+ */
+public int getRowHeight() {
+  return MagicNumber.GANTT_ROW_INSETS.top
+      + MagicNumber.GANTT_ROW_INSETS.bottom
+      + MagicNumber.GANTT_ROW_HEIGHT;
+  
+}
+
+/**
+ * Return the Renderer of each row.
+ * 
+ * @return the Renderer of each row.
+ */
+public GanttRenderer getGanttRenderer() {
+  return renderer;
+  
+}
+
+/**
+ * return the {@link TaskSetModel} used by this Gantt chart
+ *         to extract the necessary display information
+ *         from user-defined tasks
+ * @return the {@link TaskSetModel} used by this Gantt chart
+ *         to extract the necessary display information
+ *         from user-defined tasks
+ */
+public TaskSetModel getTaskSetModel() {
+  return taskset;
+  
+}
+
+/**
+ * Returns the rectangular bounds of the specified task in screen
+ * coordinates.
+ * 
+ * @param task the task
+ * @return the rectangular bounds of the specified task in screen
+ *         coordinates
+ */
+public Rectangle2D getTaskBounds(TaskModel task) {
+  int row = getTitleAt(TaskModel.getTitle(task));
+  return getTaskBounds(task, row, 0, 0)
+;  
+}
+
+/**
+ * Returns the rectangular bounds of the specified task in screen
+ * coordinates, whose position and width are modified by the additional
+ * parameters.
+ * 
+ * @param task the task
+ * @param row the new row
+ * @param dstart the change in position
+ * @param dwidth the change in width
+ * @return the rectangular bounds of the specified task in screen
+ *         coordinates, whose position and width are modified by the 
+ *         additional parameters
+ */
+public Rectangle2D getTaskBounds(
+    TaskModel task, int row, double dstart, double dwidth) {
+  double start = canonicalToScreen(TaskModel.getStart(task));
+  double end = canonicalToScreen(TaskModel.getEnd(task));
+  double top = row*getRowHeight()
+      + MagicNumber.GANTT_ROW_INSETS.top;
+  
+  return new Rectangle2D.Double(
+      start + dstart, top, end - start + dwidth,
+      MagicNumber.GANTT_ROW_HEIGHT);
+}
+
+/**
+ * Returns the row at the specified vertical position in screen
+ *  coordinates; or {@code null} if the position is out of bounds.
+ * 
+ * @param y the vertical position in screen coordinates
+ *  y = ((MouseEvent) e).getPoint.getY()
+ * @return the row at the specified vertical position in screen
+ *  coordinates; or {@code null} if the position is out of bounds
+ */
+public int getRow(double y) {
+  if (y < 0
+      || y > getHeight())
+    return -1;
+  
+  int row = (int)(y / getRowHeight());
+  if (row >= taskset.getRowCount())
+    return -1;
+
+  return row;
+  
+}
+/**
+ * Returns the task at the specified point; or {@code null} if
+ *  no task exists at that point. Pick ordering is such that
+ *  selected tasks are picked first, followed by tasks in reverse
+ *  order from their position in the {@link GanttModel}.
+ * 
+ * @param point the point
+ * @return the task at the specified point; or {@code null} if
+ *          no task exists at that point
+ */
+public TaskModel getTaskAt(Point point) {
+  Rectangle2D bounds;
+  TaskModel task;
+  int i = getRow(point.getY());
+  if (0 <= i
+      && i < taskset.getRowCount()) {
+    for (int j=taskset.getTaskCount(i)-1; j>=0; --j) {
+      task = taskset.getTaskAt(i, j);
+      bounds = getTaskBounds(task);
+      if (bounds.contains(point)) {
+        return task;
+
+      }
+
+    }
+    
+  }
+  return null;
+  
+}
+
+/**
+ * Return selectedtasks.
+ * 
+ * @return selectedtasks
+ */
+public Set<TaskModel> getSelectedTasks() {
+  return selectedtasks;
+  
+}
+
+/**
+ * Return zoom.
+ * 
+ * @return
+ */
+public double getZoom() {
+  return zoom;
+
+}
+
+/**
+ * Set zoom.
+ * 
+ * @param zoom
+ */
+//CHECKSTYLE:OFF:HiddenField
+public void setZoom(double zoom) {
+  this.zoom = zoom;
+  
+}
+
+public long getRange() {
+  return this.rangemaximum - this.rangeminimum;
+      
+}
+
+public void clearSelection() {
+  selectedtasks.clear();
+  fireSelectionEvent();
+  
+}
+
+public void toggleTaskSelection(TaskModel task) {
+  if (selectedtasks.contains(task)) {
+    selectedtasks.remove(task);
+    
+  } else {
+    selectedtasks.add(task);
+    
+  }
+  fireSelectionEvent();
+  
+}
+
+public boolean isTaskSelected(TaskModel task) {
+  return selectedtasks.contains(task);
+
+}
+
+public void selectTask(TaskModel task) {
+  selectedtasks.add(task);
+  fireSelectionEvent();
+  
+}
+
+/**
+ * Forces the Gantt chart to recompute its minimum and maximum 
+ *  values and, if necessary, resize and repaint itself.
+ */
+public void resize() {
+  long oldMinimum = rangeminimum;
+  long oldMaximum = rangemaximum;
+  computeRange();
+  if ((oldMinimum != rangeminimum) 
+      || (oldMaximum != rangemaximum)) {
+    forceRevalidateAndRepaint();
+    
+  }
+  
+}
+
+/**
+ * Returns the rectangular bounds of the specified row in screen 
+ * coordinates.
+ * 
+ * @param row the row
+ * @return the rectangular bounds of the specified row in screen 
+ *         coordinates
+ */
+public Rectangle2D getRowBounds(int row) {    
+  return new Rectangle2D.Double(0.0, row*getRowHeight(), getWidth(),
+      getRowHeight());
+}
+
+@Override
+public void paintComponent(Graphics g) {
+  Graphics2D g2 = (Graphics2D)g;
+  Rectangle clip = g2.getClipBounds();
+  // background
+  renderer.paintBackground(g, this);
+  // rows
+  for (int i = taskset.getRowCount() - 1; i>=0; --i) {
+    Rectangle2D bounds = getRowBounds(i);  
+    if (bounds.intersects(clip)) {
+      renderer.paintRow(g, this, i, bounds, false);
+  
+    }
+  
+  }
+  // tasks
+  for (int i = taskset.getRowCount() - 1; i>=0; --i) {
+    for (int j = taskset.getTaskCount(i)-1; j >= 0; --j) {
+      TaskModel task = taskset.getTaskAt(i, j);
+      Rectangle2D bounds = getTaskBounds(task);
+      if (bounds.intersects(clip)) {
+        renderer.paintTask(
+            g, this, task, bounds, isTaskSelected(task));
+
+      }
+    
+    }
+    
+  }
+  // links
+  if (taskset.getTaskLinkCount() != 0) {
+    for (int i = taskset.getTaskLinkCount() - 1; i >= 0; --i) {
+      renderer.paintLink(g, this, taskset.getTaskLinkAt(i));
+      
+    }
+    
+  }
+  
+}
+
+@Override
+final public Dimension getPreferredSize() {
+  int width;
+  if (getParent() instanceof JViewport) {
+    width = (int)(zoom * getParent().getWidth());
+    
+  } else {
+    width = super.getPreferredSize().width;
+    
+  }
+  int height = taskset.getRowCount() * getRowHeight();
+  return new Dimension(width, height);
+  
+}
 
 }
